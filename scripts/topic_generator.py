@@ -91,6 +91,7 @@ Return ONLY valid JSON:
 
     # Models to try in order
     models_to_try = [
+        "claude-opus-4-7", # The custom/proxy model name that is active in this account
         "claude-3-5-sonnet-20241022",
         "claude-3-5-sonnet-20240620",
         "claude-3-sonnet-20240229",
