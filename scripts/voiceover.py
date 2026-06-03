@@ -1,8 +1,14 @@
 import os
 import tempfile
 import requests
+import datetime
 
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+
+VOICES = [
+    "vGQNBgLaiM3EdZtxIiuY",  # Alternating Voice A (e.g. Male)
+    "JjsQrIrIBD6TZ656NQfi"   # Alternating Voice B (e.g. Female)
+]
 
 VOICE_SETTINGS = {
     "stability": 0.35,
@@ -19,7 +25,10 @@ def strip_emojis(text: str) -> str:
 
 def generate_voiceover(script: str) -> str:
     api_key = os.environ["ELEVENLABS_API_KEY"]
-    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "Lw21wLjWqPPaL3TcYWek")
+    
+    # Alternate daily based on calendar date ordinal
+    day_number = datetime.date.today().toordinal()
+    voice_id = VOICES[day_number % len(VOICES)]
 
     clean_script = strip_emojis(script)
     url = ELEVENLABS_URL.format(voice_id=voice_id)
