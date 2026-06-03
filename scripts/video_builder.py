@@ -330,16 +330,16 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
         
     # Captions Styling (Big bold center-aligned captions)
     subtitle_style = (
-        "FontSize=24,"
-        "FontName=Arial,"
+        "FontSize=64,"
+        "FontName=Arial Black,"
         "PrimaryColour=&H00FFFF,"  # Vibrant Yellow/Cyan
         "OutlineColour=&H000000,"
         "BackColour=&H00000000,"
-        "Outline=3,"
-        "Shadow=2,"
+        "Outline=4,"
+        "Shadow=0,"
         "Bold=1,"
-        "Alignment=10,"
-        "MarginV=60"
+        "Alignment=2,"             # Bottom Center alignment
+        "MarginV=550"              # Margin from bottom (places captions in lower-middle)
     )
     
     # 5. Check background music
