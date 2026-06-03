@@ -330,16 +330,16 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
         
     # Captions Styling (Big bold center-aligned captions)
     subtitle_style = (
-        "FontSize=64,"
+        "FontSize=36,"
         "FontName=Arial Black,"
         "PrimaryColour=&H00FFFF,"  # Vibrant Yellow/Cyan
         "OutlineColour=&H000000,"
         "BackColour=&H00000000,"
-        "Outline=4,"
+        "Outline=3,"
         "Shadow=0,"
         "Bold=1,"
         "Alignment=2,"             # Bottom Center alignment
-        "MarginV=550"              # Margin from bottom (places captions in lower-middle)
+        "MarginV=90"               # Margin from bottom (places captions in lower-middle on default ASS grid)
     )
     
     # 5. Check background music
@@ -356,7 +356,7 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
             "-i", merged_video_path,
             "-i", audio_path,
             "-stream_loop", "-1", "-i", music_file,
-            "-filter_complex", "[1:a]volume=1.2[v1];[2:a]volume=0.08[v2];[v1][v2]amix=inputs=2:duration=first:dropout_transition=2[a]",
+            "-filter_complex", "[1:a]volume=1.2[v1];[2:a]volume=0.18[v2];[v1][v2]amix=inputs=2:duration=first:dropout_transition=2[a]",
             "-vf", vf,
             "-c:v", "libx264", "-preset", "fast", "-crf", "22",
             "-c:a", "aac", "-b:a", "192k",
