@@ -162,7 +162,9 @@ def safe_text(text: str) -> str:
     return text[:55]
 
 def get_images_for_series(series_id: str) -> list:
-    extracted_dir = os.path.join(REPO_ROOT, "extracted_images")
+    extracted_dir = r"C:\Users\srava\.gemini\antigravity\scratch\anime-theory-youtube\extracted_images"
+    if not os.path.exists(extracted_dir):
+        extracted_dir = os.path.join(REPO_ROOT, "extracted_images")
     if not os.path.exists(extracted_dir):
         print(f"  Warning: {extracted_dir} does not exist yet.")
         return []
