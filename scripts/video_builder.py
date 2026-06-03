@@ -60,11 +60,18 @@ def inject_emojis(text: str) -> str:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     return text
 
-def generate_whisper_srt(audio_path: str) -> str | None:
-    """Use OpenAI Whisper for perfectly synced captions"""
+def fmt_ass_time(s: float) -> str:
+    h = int(s // 3600)
+    m = int((s % 3600) // 60)
+    sec = int(s % 60)
+    cs = int((s % 1) * 100)
+    return f"{h}:{m:02d}:{sec:02d}.{cs:02d}"
+
+def generate_whisper_ass(audio_path: str) -> str | None:
+    """Use OpenAI Whisper for perfectly synced captions with active word pop/highlighting"""
     try:
         import whisper
-        print("  Running Whisper for perfect caption sync...")
+        print("  Running Whisper for perfect Hormozi-style ASS caption sync...")
         model = whisper.load_model("tiny")
         result = model.transcribe(
             audio_path,
@@ -72,88 +79,148 @@ def generate_whisper_srt(audio_path: str) -> str | None:
             language="en"
         )
 
-        lines = []
-        idx = 1
-        words_per_caption = 3
-
         all_words = []
         for segment in result.get("segments", []):
             for word_info in segment.get("words", []):
-                all_words.append(word_info)
+                all_words.append({
+                    "word": word_info["word"].strip().upper(),
+                    "start": word_info["start"],
+                    "end": word_info["end"]
+                })
 
-        for i in range(0, len(all_words), words_per_caption):
-            chunk = all_words[i:i + words_per_caption]
-            if not chunk:
+        if not all_words:
+            return None
+
+        # Group words into lines of 3 words
+        words_per_line = 3
+        events = []
+        
+        # Keywords to highlight in bright Green
+        highlight_keywords = {
+            "JINWOO", "SUNG", "ASHBORN", "MONARCH", "SHADOW", "SYSTEM", "THRONE", "STEAL", "STOLE", "PROVEN", "PROOF",
+            "LUFFY", "SHANKS", "ZORO", "GEAR", "NIKA", "BLACKBEARD", "IMU", "ROGER",
+            "ICHIGO", "AIZEN", "BANKAI", "HOLLOW", "QUINCY", "SOUL", "KING", "YHWACH"
+        }
+
+        for i in range(0, len(all_words), words_per_line):
+            line_chunk = all_words[i:i + words_per_line]
+            if not line_chunk:
                 continue
+            
+            # Create a separate Dialogue event for each active word spoke
+            for active_idx, active_word_info in enumerate(line_chunk):
+                start_time_str = fmt_ass_time(active_word_info["start"])
+                end_time_str = fmt_ass_time(active_word_info["end"])
+                
+                text_parts = []
+                for idx, w_info in enumerate(line_chunk):
+                    word_clean = w_info["word"]
+                    word_clean_nopunct = re.sub(r'[^\w\s]', '', word_clean)
+                    
+                    is_active = (idx == active_idx)
+                    is_keyword = (word_clean_nopunct in highlight_keywords)
+                    
+                    if is_active:
+                        # Highlight active word (Green if keyword, Yellow if normal)
+                        color = "&H00FF00&" if is_keyword else "&H00FFFF&"
+                        part = f"{{\\c{color}}}{{\\fscx115\\fscy115}}{word_clean}{{\\fscx100\\fscy100}}"
+                    else:
+                        # Inactive word is white
+                        part = f"{{\\c&HFFFFFF&}}{word_clean}"
+                    text_parts.append(part)
+                
+                event_text = " ".join(text_parts)
+                event_text = inject_emojis(event_text)
+                
+                events.append(f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,{event_text}")
 
-            start = chunk[0]["start"]
-            end = chunk[-1]["end"]
-            text = " ".join(w["word"].strip().upper() for w in chunk)
-            text = inject_emojis(text)
+        ass_header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
 
-            lines.append(str(idx))
-            lines.append(f"{fmt(start)} --> {fmt(end)}")
-            lines.append(text)
-            lines.append("")
-            idx += 1
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial Black,72,&HFFFFFF,&HFFFFFF,&H000000,&H000000,1,0,0,0,100,100,0,0,1,5,0,2,10,10,650,1
 
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+        ass_content = ass_header + "\n".join(events) + "\n"
+        
         tmp = tempfile.NamedTemporaryFile(
-            delete=False, suffix=".srt",
+            delete=False, suffix=".ass",
             mode='w', encoding='utf-8'
         )
-        tmp.write("\n".join(lines))
+        tmp.write(ass_content)
         tmp.close()
-        print("  Whisper captions generated!")
+        print("  Hormozi-style Whisper ASS captions generated!")
         return tmp.name
 
     except Exception as e:
-        print(f"  Whisper failed: {e}, using estimated timing...")
+        print(f"  Whisper ASS generation failed: {e}")
         return None
 
-def generate_estimated_srt(script: str, duration: float) -> str:
-    """Fallback: estimated timing based on word count"""
+def generate_estimated_ass(script: str, duration: float) -> str:
+    """Fallback: estimated timing based on word count with active word pop/highlighting"""
     script = re.sub(r'\s+', ' ', script).strip()
     words = script.split()
     total = len(words)
-
     if total == 0:
         words = ["..."]
         total = 1
 
     time_per_word = duration / total
-    words_per_caption = 3
-    lines = []
-    idx = 1
+    words_per_line = 3
+    events = []
 
-    for i in range(0, total, words_per_caption):
-        chunk = words[i:i + words_per_caption]
-        start = i * time_per_word
-        end = min((i + words_per_caption) * time_per_word, duration)
-        end = max(start + 0.1, end - 0.05)
+    for i in range(0, total, words_per_line):
+        line_chunk = words[i:i + words_per_line]
+        line_start = i * time_per_word
+        line_end = min((i + words_per_line) * time_per_word, duration)
+        
+        w_dur = (line_end - line_start) / len(line_chunk)
+        
+        for active_idx, active_word in enumerate(line_chunk):
+            w_start = line_start + active_idx * w_dur
+            w_end = w_start + w_dur
+            
+            start_time_str = fmt_ass_time(w_start)
+            end_time_str = fmt_ass_time(w_end)
+            
+            text_parts = []
+            for idx, word in enumerate(line_chunk):
+                is_active = (idx == active_idx)
+                if is_active:
+                    part = f"{{\\c&H00FFFF&}}{{\\fscx115\\fscy115}}{word.upper()}{{\\fscx100\\fscy100}}"
+                else:
+                    part = f"{{\\c&HFFFFFF&}}{word.upper()}"
+                text_parts.append(part)
+                
+            event_text = " ".join(text_parts)
+            event_text = inject_emojis(event_text)
+            events.append(f"Dialogue: 0,{start_time_str},{end_time_str},Default,,0,0,0,,{event_text}")
 
-        text = " ".join(chunk).upper()
-        text = inject_emojis(text)
+    ass_header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
 
-        lines.append(str(idx))
-        lines.append(f"{fmt(start)} --> {fmt(end)}")
-        lines.append(text)
-        lines.append("")
-        idx += 1
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial Black,72,&HFFFFFF,&HFFFFFF,&H000000,&H000000,1,0,0,0,100,100,0,0,1,5,0,2,10,10,650,1
 
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    ass_content = ass_header + "\n".join(events) + "\n"
     tmp = tempfile.NamedTemporaryFile(
-        delete=False, suffix=".srt",
+        delete=False, suffix=".ass",
         mode='w', encoding='utf-8'
     )
-    tmp.write("\n".join(lines))
+    tmp.write(ass_content)
     tmp.close()
     return tmp.name
-
-def fmt(s: float) -> str:
-    h = int(s // 3600)
-    m = int((s % 3600) // 60)
-    sec = int(s % 60)
-    ms = int((s % 1) * 1000)
-    return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
 
 def safe_text(text: str) -> str:
     text = re.sub(r"['\"\[\]{}|\\]", "", text)
@@ -323,31 +390,17 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     output.close()
     
-    srt_path = generate_whisper_srt(audio_path)
-    if not srt_path:
+    ass_path = generate_whisper_ass(audio_path)
+    if not ass_path:
         caption_text = script if script.strip() else title
-        srt_path = generate_estimated_srt(caption_text, duration)
+        ass_path = generate_estimated_ass(caption_text, duration)
         
-    # Captions Styling (Big bold center-aligned captions)
-    subtitle_style = (
-        "FontSize=36,"
-        "FontName=Arial Black,"
-        "PrimaryColour=&H00FFFF,"  # Vibrant Yellow/Cyan
-        "OutlineColour=&H000000,"
-        "BackColour=&H00000000,"
-        "Outline=3,"
-        "Shadow=0,"
-        "Bold=1,"
-        "Alignment=2,"             # Bottom Center alignment
-        "MarginV=90"               # Margin from bottom (places captions in lower-middle on default ASS grid)
-    )
-    
     # 5. Check background music
     music_file = os.path.join(REPO_ROOT, "music", "background_music.ogg")
     has_music = os.path.exists(music_file)
     
-    escaped_srt = srt_path.replace('\\', '/').replace(':', '\\:')
-    vf = f"subtitles='{escaped_srt}':force_style='{subtitle_style}'"
+    escaped_ass = ass_path.replace('\\', '/').replace(':', '\\:')
+    vf = f"subtitles='{escaped_ass}'"
     
     if has_music:
         print(f"  Mixing background music under narration...")
