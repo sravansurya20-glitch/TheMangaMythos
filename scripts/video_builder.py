@@ -1,0 +1,394 @@
+import os
+import re
+import json
+import tempfile
+import subprocess
+import datetime
+import random
+import requests
+from pathlib import Path
+from PIL import Image
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WIDTH, HEIGHT = 1080, 1920
+
+def get_audio_duration(audio_path: str) -> float:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+        capture_output=True, text=True
+    )
+    return float(result.stdout.strip())
+
+EMOJI_MAP = {
+    r"\bLUFFY\b": "LUFFY 👒",
+    r"\bSHANKS\b": "SHANKS 🏴‍☠️",
+    r"\bZORO\b": "ZORO ⚔️",
+    r"\bGEAR 5\b": "GEAR 5 ⚡",
+    r"\bONE PIECE\b": "ONE PIECE 🏴‍☠️",
+    r"\bIMU\b": "IMU 👑",
+    r"\bBLACKBEARD\b": "BLACKBEARD 👿",
+    r"\bJINWOO\b": "JINWOO 👑",
+    r"\bSUNG\b": "SUNG 👑",
+    r"\bSHADOW\b": "SHADOW 👿",
+    r"\bMONARCH\b": "MONARCH 👑",
+    r"\bSYSTEM\b": "SYSTEM ⚙️",
+    r"\bICHIGO\b": "ICHIGO ⚔️",
+    r"\bAIZEN\b": "AIZEN 🤓",
+    r"\bBANKAI\b": "BANKAI 卍",
+    r"\bHOLLOW\b": "HOLLOW 👺",
+    r"\bQUINCY\b": "QUINCY 🏹",
+    r"\bSOUL KING\b": "SOUL KING 👑",
+    r"\bNARUTO\b": "NARUTO 🦊",
+    r"\bSASUKE\b": "SASUKE 👁️",
+    r"\bITACHI\b": "ITACHI 🐦",
+    r"\bMADARA\b": "MADARA ☄️",
+    r"\bUCHIHA\b": "UCHIHA 👁️",
+    r"\bSHARINGAN\b": "SHARINGAN 👁️",
+    r"\bAKATSUKI\b": "AKATSUKI ☁️",
+    r"\bSECRET\b": "SECRET 🤫",
+    r"\bTHEORY\b": "THEORY 🧠",
+    r"\bDEATH\b": "DEATH 💀",
+    r"\bDIED\b": "DIED 💀",
+    r"\bCRAZY\b": "CRAZY 🤯",
+    r"\bTRUTH\b": "TRUTH 💯",
+    r"\bVILLAIN\b": "VILLAIN 🦹‍♂️",
+}
+
+def inject_emojis(text: str) -> str:
+    for pattern, replacement in EMOJI_MAP.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text
+
+def generate_whisper_srt(audio_path: str) -> str | None:
+    """Use OpenAI Whisper for perfectly synced captions"""
+    try:
+        import whisper
+        print("  Running Whisper for perfect caption sync...")
+        model = whisper.load_model("tiny")
+        result = model.transcribe(
+            audio_path,
+            word_timestamps=True,
+            language="en"
+        )
+
+        lines = []
+        idx = 1
+        words_per_caption = 3
+
+        all_words = []
+        for segment in result.get("segments", []):
+            for word_info in segment.get("words", []):
+                all_words.append(word_info)
+
+        for i in range(0, len(all_words), words_per_caption):
+            chunk = all_words[i:i + words_per_caption]
+            if not chunk:
+                continue
+
+            start = chunk[0]["start"]
+            end = chunk[-1]["end"]
+            text = " ".join(w["word"].strip().upper() for w in chunk)
+            text = inject_emojis(text)
+
+            lines.append(str(idx))
+            lines.append(f"{fmt(start)} --> {fmt(end)}")
+            lines.append(text)
+            lines.append("")
+            idx += 1
+
+        tmp = tempfile.NamedTemporaryFile(
+            delete=False, suffix=".srt",
+            mode='w', encoding='utf-8'
+        )
+        tmp.write("\n".join(lines))
+        tmp.close()
+        print("  Whisper captions generated!")
+        return tmp.name
+
+    except Exception as e:
+        print(f"  Whisper failed: {e}, using estimated timing...")
+        return None
+
+def generate_estimated_srt(script: str, duration: float) -> str:
+    """Fallback: estimated timing based on word count"""
+    script = re.sub(r'\s+', ' ', script).strip()
+    words = script.split()
+    total = len(words)
+
+    if total == 0:
+        words = ["..."]
+        total = 1
+
+    time_per_word = duration / total
+    words_per_caption = 3
+    lines = []
+    idx = 1
+
+    for i in range(0, total, words_per_caption):
+        chunk = words[i:i + words_per_caption]
+        start = i * time_per_word
+        end = min((i + words_per_caption) * time_per_word, duration)
+        end = max(start + 0.1, end - 0.05)
+
+        text = " ".join(chunk).upper()
+        text = inject_emojis(text)
+
+        lines.append(str(idx))
+        lines.append(f"{fmt(start)} --> {fmt(end)}")
+        lines.append(text)
+        lines.append("")
+        idx += 1
+
+    tmp = tempfile.NamedTemporaryFile(
+        delete=False, suffix=".srt",
+        mode='w', encoding='utf-8'
+    )
+    tmp.write("\n".join(lines))
+    tmp.close()
+    return tmp.name
+
+def fmt(s: float) -> str:
+    h = int(s // 3600)
+    m = int((s % 3600) // 60)
+    sec = int(s % 60)
+    ms = int((s % 1) * 1000)
+    return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
+
+def safe_text(text: str) -> str:
+    text = re.sub(r"['\"\[\]{}|\\]", "", text)
+    text = text.replace(":", "\\:").replace(",", "\\,")
+    text = text.replace("?", "\\?").replace("!", "\\!")
+    return text[:55]
+
+def get_images_for_series(series_id: str) -> list:
+    extracted_dir = os.path.join(REPO_ROOT, "extracted_images")
+    if not os.path.exists(extracted_dir):
+        print(f"  Warning: {extracted_dir} does not exist yet.")
+        return []
+        
+    subfolders = [os.path.join(extracted_dir, d) for d in os.listdir(extracted_dir) if os.path.isdir(os.path.join(extracted_dir, d))]
+    
+    matching_folders = []
+    for folder in subfolders:
+        folder_name = os.path.basename(folder).lower()
+        if series_id == "one_piece" and ("one piece" in folder_name or "bleach" in folder_name):
+            # bleach.cbz contains One Piece images, so use it as well
+            matching_folders.append(folder)
+        elif series_id == "solo_leveling" and ("solo leveling" in folder_name or "capitolo" in folder_name):
+            matching_folders.append(folder)
+        elif series_id == "bleach" and "bleach" in folder_name:
+            matching_folders.append(folder)
+        elif series_id == "naruto" and "naruto" in folder_name:
+            matching_folders.append(folder)
+            
+    # Fallback to any folder if no match
+    if not matching_folders and subfolders:
+        print(f"  Warning: No matching folder for series '{series_id}'. Falling back to all available folders.")
+        matching_folders = subfolders
+        
+    images = []
+    for folder in matching_folders:
+        for root, _, files in os.walk(folder):
+            for f in files:
+                if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    images.append(os.path.join(root, f))
+                    
+    random.shuffle(images)
+    print(f"  Found {len(images)} total images for series '{series_id}' in folders: {[os.path.basename(f) for f in matching_folders]}")
+    return images
+
+def make_panning_clip(image_path: str, duration: float, output_path: str) -> bool:
+    """Creates a 30fps vertical video clip with a smooth panning/scrolling effect based on image aspect ratio"""
+    try:
+        with Image.open(image_path) as img:
+            iw, ih = img.size
+    except Exception as e:
+        print(f"  Error reading image {image_path}: {e}")
+        return False
+        
+    ratio = iw / ih
+    
+    # Generate the filtergraph for panning/scrolling
+    if ratio < 0.45:
+        # 1. Tall vertical image (e.g. Solo Leveling webtoon page) -> Scroll top-to-bottom or bottom-to-top
+        direction = random.choice(["down", "up"])
+        # Scale to 1080 width, maintaining aspect ratio. If it's too short, scale to at least 2100 height.
+        if direction == "down":
+            vf = f"scale=1080:'max(2100,ih*1080/iw)',crop=1080:1920:0:'(in_h-1920)*t/{duration}'"
+        else:
+            vf = f"scale=1080:'max(2100,ih*1080/iw)',crop=1080:1920:0:'(in_h-1920)*(1-t/{duration})'"
+    elif ratio > 1.2:
+        # 2. Wide horizontal panel -> Scroll left-to-right or right-to-left
+        direction = random.choice(["right", "left"])
+        if direction == "right":
+            vf = f"scale='max(1200,iw*1920/ih)':1920,crop=1080:1920:'(in_w-1080)*t/{duration}':0"
+        else:
+            vf = f"scale='max(1200,iw*1920/ih)':1920,crop=1080:1920:'(in_w-1080)*(1-t/{duration})':0"
+    else:
+        # 3. Square/Standard page -> Diagonal slow pan
+        direction = random.choice(["diagonal_down", "diagonal_up", "zoom_center"])
+        if direction == "diagonal_down":
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)*t/{duration}'"
+        elif direction == "diagonal_up":
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*(1-t/{duration})':'(in_h-1920)*(1-t/{duration})'"
+        else:
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)/2'"
+            
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-vf", vf,
+        "-c:v", "libx264",
+        "-t", f"{duration:.3f}",
+        "-pix_fmt", "yuv420p",
+        "-r", "30",
+        output_path
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  [FFmpeg Error in make_panning_clip] Command failed: {' '.join(cmd)}")
+        print(f"  Stderr: {result.stderr}")
+    return result.returncode == 0
+
+def build_video(audio_path: str, title: str, script: str = "", anime_series: str = "one_piece") -> str:
+    duration = get_audio_duration(audio_path)
+    print(f"  Audio duration: {duration:.1f}s")
+    
+    # 1. Fetch images for this series
+    images = get_images_for_series(anime_series)
+    if not images:
+        raise RuntimeError(f"No extracted manga images found for '{anime_series}'. Please make sure pdf_extractor has run successfully.")
+        
+    # We will use 5 images for a standard Short, meaning ~10s per image
+    num_clips = 5
+    if len(images) < num_clips:
+        images = images * (num_clips // len(images) + 1)
+    selected_images = images[:num_clips]
+    
+    clip_dur = duration / num_clips
+    print(f"  Creating {num_clips} image clips with duration {clip_dur:.2f}s each...")
+    
+    # 2. Build temporary panning clips
+    temp_clips = []
+    temp_dir = tempfile.gettempdir()
+    
+    for i, img_path in enumerate(selected_images):
+        clip_path = os.path.join(temp_dir, f"temp_clip_{i}_{datetime.datetime.now().strftime('%M%S%f')}.mp4")
+        success = make_panning_clip(img_path, clip_dur, clip_path)
+        if success:
+            temp_clips.append(clip_path)
+        else:
+            print(f"  Error: Failed to create panning clip for {img_path}")
+            
+    if not temp_clips:
+        raise RuntimeError("Failed to create any panning image clips.")
+        
+    # 3. Concatenate the clips
+    concat_txt_path = os.path.join(temp_dir, f"concat_list_{datetime.datetime.now().strftime('%M%S%f')}.txt")
+    with open(concat_txt_path, 'w', encoding='utf-8') as f:
+        for c in temp_clips:
+            # Escape single quotes and backslashes for FFmpeg concat demuxer
+            safe_c = c.replace("'", "'\\''").replace("\\", "/")
+            f.write(f"file '{safe_c}'\n")
+            
+    merged_video_path = os.path.join(temp_dir, f"merged_slideshow_{datetime.datetime.now().strftime('%M%S%f')}.mp4")
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_txt_path,
+        "-c", "copy",
+        merged_video_path
+    ]
+    
+    print("  Concatenating image clips...")
+    res = subprocess.run(concat_cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        raise RuntimeError(f"FFmpeg concatenation failed:\n{res.stderr}")
+        
+    # Clean up temporary individual clips and list file
+    try:
+        os.remove(concat_txt_path)
+        for c in temp_clips:
+            os.remove(c)
+    except:
+        pass
+        
+    # 4. Generate subtitles
+    output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    output.close()
+    
+    srt_path = generate_whisper_srt(audio_path)
+    if not srt_path:
+        caption_text = script if script.strip() else title
+        srt_path = generate_estimated_srt(caption_text, duration)
+        
+    # Captions Styling (Big bold center-aligned captions)
+    subtitle_style = (
+        "FontSize=24,"
+        "FontName=Arial,"
+        "PrimaryColour=&H00FFFF,"  # Vibrant Yellow/Cyan
+        "OutlineColour=&H000000,"
+        "BackColour=&H00000000,"
+        "Outline=3,"
+        "Shadow=2,"
+        "Bold=1,"
+        "Alignment=10,"
+        "MarginV=60"
+    )
+    
+    # 5. Check background music
+    music_file = os.path.join(REPO_ROOT, "music", "background_music.ogg")
+    has_music = os.path.exists(music_file)
+    
+    escaped_srt = srt_path.replace('\\', '/').replace(':', '\\:')
+    vf = f"subtitles='{escaped_srt}':force_style='{subtitle_style}'"
+    
+    if has_music:
+        print(f"  Mixing background music under narration...")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", merged_video_path,
+            "-i", audio_path,
+            "-stream_loop", "-1", "-i", music_file,
+            "-filter_complex", "[1:a]volume=1.2[v1];[2:a]volume=0.08[v2];[v1][v2]amix=inputs=2:duration=first:dropout_transition=2[a]",
+            "-vf", vf,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0",
+            "-map", "[a]",
+            "-t", f"{duration:.3f}",
+            output.name
+        ]
+    else:
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", merged_video_path,
+            "-i", audio_path,
+            "-vf", vf,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-t", f"{duration:.3f}",
+            output.name
+        ]
+        
+    print("  Rendering final video with audio mix and burned-in captions...")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    # Clean up merged video file
+    try:
+        os.remove(merged_video_path)
+    except:
+        pass
+        
+    if result.returncode != 0:
+        raise RuntimeError(f"FFmpeg rendering failed:\n{result.stderr}")
+        
+    size_mb = Path(output.name).stat().st_size / (1024 * 1024)
+    print(f"  Video built successfully: {size_mb:.1f} MB")
+    return output.name

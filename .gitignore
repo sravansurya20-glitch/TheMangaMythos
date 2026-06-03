@@ -1,0 +1,27 @@
+# Environment variables (API keys)
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Debug/test scripts
+debug_key.py
+diagnostic_elevenlabs.py
+list_voices.py
+test_anthropic.py
+test_elevenlabs.py
+
+# Log files
+run_job_log*.txt
+
+# Output
+output_videos/
+*.mp3
+*.srt
+
+# Extracted manga images
+extracted_images/
+extracted/
+

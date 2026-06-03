@@ -1,0 +1,6 @@
+anthropic>=0.25.0
+requests>=2.31.0
+gtts>=2.3.0
+openai-whisper>=20231117
+python-dotenv
+pymupdf>=1.22.0
