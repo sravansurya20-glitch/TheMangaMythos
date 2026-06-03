@@ -27,14 +27,6 @@ VIRAL_HOOKS = [
     ("What if Sung Jinwoo lost his shadow powers?", "jinwoo weak hunter E-rank", "solo_leveling"),
     ("Why the Rulers are actually the bad guys in Solo Leveling.", "rulers absolute being fragment", "solo_leveling"),
     
-    # Bleach
-    ("What if Ichigo's Zanpakuto was actually Yhwach all along?", "old man zangetsu yhwach", "bleach"),
-    ("Why Aizen's Bankai was never shown in Bleach.", "aizen bankai kyoka suigetsu", "bleach"),
-    ("Is Kisuke Urahara the true final villain of Bleach?", "kisuke urahara shady look", "bleach"),
-    ("Why Ichigo is the most overpowered anime protagonist.", "ichigo hollow quincy shinigami", "bleach"),
-    ("The secret connection between Ichigo and the Soul King.", "ichigo soul king replacement", "bleach"),
-    ("What if Aizen planned Ichigo's entire life?", "aizen glasses smirk mastermind", "bleach"),
-    ("Why Yhwach's Almighty is the most broken anime ability.", "yhwach almighty eyes pupils", "bleach"),
 ]
 
 def generate_topic_and_script(niche: str) -> dict:
