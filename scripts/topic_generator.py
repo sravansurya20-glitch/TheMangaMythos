@@ -35,17 +35,6 @@ VIRAL_HOOKS = [
     ("The secret connection between Ichigo and the Soul King.", "ichigo soul king replacement", "bleach"),
     ("What if Aizen planned Ichigo's entire life?", "aizen glasses smirk mastermind", "bleach"),
     ("Why Yhwach's Almighty is the most broken anime ability.", "yhwach almighty eyes pupils", "bleach"),
-    
-    # Naruto
-    ("What if Itachi never slaughtered the Uchiha clan?", "itachi uchiha tears sasuke", "naruto"),
-    ("Why Madara Uchiha was actually right.", "madara infinite tsukuyomi mugen", "naruto"),
-    ("Did Minato know Naruto would be hated by the village?", "minato kushina death naruto infant", "naruto"),
-    ("Why Naruto should have become a villain.", "naruto swing sad swing lonely", "naruto"),
-    ("The dark secret of the Otsutsuki clan.", "kaguya otsutsuki god tree shinju", "naruto"),
-    ("What if Obito Uchiha never became evil?", "obito uchiha goggles sharingan", "naruto"),
-    ("What if Naruto was raised by the Akatsuki?", "naruto akatsuki cloak red cloud", "naruto"),
-    ("Why Kakashi's sharingan was a curse.", "kakashi sharingan eye obito grave", "naruto"),
-    ("The truth about the Will of Fire in Naruto.", "will of fire konoha ninja propaganda", "naruto"),
 ]
 
 def generate_topic_and_script(niche: str) -> dict:
@@ -70,7 +59,7 @@ STORY REQUIREMENTS:
    - The Twist/Insight (Why this changes everything we know about the series. "If this is true, then...")
    - Call to Action / Engagement Prompt (Prompt viewers to debate in the comments. E.g. "But what do you think? Did Shanks betray Luffy, or is he playing the long game? Let me know in the comments and subscribe for more wild anime theories! 🔔")
 3. TONE: High energy, fast-paced, theatrical, debate-provoking.
-4. LENGTH: 110-135 words (Perfect for a 50-60 second Short).
+4. LENGTH: 70-85 words (Perfect for a 30-40 second Short).
 5. EMOJIS: Generously include relevant, high-impact emojis throughout the script (e.g., 🏴‍☠️, 🦊, ⚔️, 👿, 🤯, 💀, 👁️) to make captions visually pop!
 
 SCRIPT STYLE:
@@ -84,7 +73,7 @@ Return ONLY valid JSON:
   "title": "{hook[:45]}...",
   "keyword": "{keyword}",
   "anime_series": "{anime_series}",
-  "script": "110-135 word high-energy viral script with rich, relevant emojis included in the text",
+  "script": "70-85 word high-energy viral script with rich, relevant emojis included in the text",
   "description": "{hook} 🤯🔥 #AnimeTheory #Anime #Manga #Shorts #Trending #{anime_series.replace('_', '')}",
   "tags": ["anime", "manga", "anime theory", "shorts", "trending", "{anime_series.replace('_', '')}", "what if", "theory"]
 }}"""
