@@ -29,12 +29,41 @@ VIRAL_HOOKS = [
     
 ]
 
+import random
+
+HISTORY_FILE = r"C:\Users\srava\.gemini\antigravity\scratch\anime_used_hooks.json"
+
 def generate_topic_and_script(niche: str) -> dict:
     today = datetime.date.today().strftime("%B %d, %Y")
-    day_number = datetime.date.today().toordinal()
     
-    # Select hook based on the day of the year
-    hook, keyword, anime_series = VIRAL_HOOKS[day_number % len(VIRAL_HOOKS)]
+    # Load recently used hooks from persistent file
+    used_hooks = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                used_hooks = json.load(f)
+        except:
+            pass
+            
+    # Filter out recently used hooks
+    available = [h for h in VIRAL_HOOKS if h[0] not in used_hooks]
+    if not available:
+        available = VIRAL_HOOKS
+        used_hooks = []
+        
+    selected = random.choice(available)
+    hook, keyword, anime_series = selected
+    
+    # Save selection to history (keep last 10 to prevent short-term repeats)
+    used_hooks.append(hook)
+    if len(used_hooks) > 10:
+        used_hooks = used_hooks[-10:]
+    try:
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(used_hooks, f)
+    except:
+        pass
 
     prompt = f"""You are the world's leading Anime Theory content creator, famous for wild, mind-bending, and controversial theories that spark massive debates in the comments.
 Your goal is to write a viral YouTube Short script.
