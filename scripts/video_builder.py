@@ -241,8 +241,7 @@ def get_images_for_series(series_id: str) -> list:
     matching_folders = []
     for folder in subfolders:
         folder_name = os.path.basename(folder).lower()
-        if series_id == "one_piece" and ("one piece" in folder_name or "bleach" in folder_name):
-            # bleach.cbz contains One Piece images, so use it as well
+        if series_id == "one_piece" and "one piece" in folder_name:
             matching_folders.append(folder)
         elif series_id == "solo_leveling" and ("solo leveling" in folder_name or "capitolo" in folder_name):
             matching_folders.append(folder)
