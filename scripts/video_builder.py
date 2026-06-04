@@ -283,25 +283,25 @@ def make_panning_clip(image_path: str, duration: float, output_path: str) -> boo
         direction = random.choice(["down", "up"])
         # Scale to 1080 width, maintaining aspect ratio. If it's too short, scale to at least 2100 height.
         if direction == "down":
-            vf = f"scale=1080:'max(2100,ih*1080/iw)',crop=1080:1920:0:'(in_h-1920)*t/{duration}'"
+            vf = f"scale=1080:'max(2100,ih*1080/iw)':flags=lanczos,crop=1080:1920:0:'(in_h-1920)*t/{duration}'"
         else:
-            vf = f"scale=1080:'max(2100,ih*1080/iw)',crop=1080:1920:0:'(in_h-1920)*(1-t/{duration})'"
+            vf = f"scale=1080:'max(2100,ih*1080/iw)':flags=lanczos,crop=1080:1920:0:'(in_h-1920)*(1-t/{duration})'"
     elif ratio > 1.2:
         # 2. Wide horizontal panel -> Scroll left-to-right or right-to-left
         direction = random.choice(["right", "left"])
         if direction == "right":
-            vf = f"scale='max(1200,iw*1920/ih)':1920,crop=1080:1920:'(in_w-1080)*t/{duration}':0"
+            vf = f"scale='max(1200,iw*1920/ih)':1920:flags=lanczos,crop=1080:1920:'(in_w-1080)*t/{duration}':0"
         else:
-            vf = f"scale='max(1200,iw*1920/ih)':1920,crop=1080:1920:'(in_w-1080)*(1-t/{duration})':0"
+            vf = f"scale='max(1200,iw*1920/ih)':1920:flags=lanczos,crop=1080:1920:'(in_w-1080)*(1-t/{duration})':0"
     else:
         # 3. Square/Standard page -> Diagonal slow pan
         direction = random.choice(["diagonal_down", "diagonal_up", "zoom_center"])
         if direction == "diagonal_down":
-            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)*t/{duration}'"
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)':flags=lanczos,crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)*t/{duration}'"
         elif direction == "diagonal_up":
-            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*(1-t/{duration})':'(in_h-1920)*(1-t/{duration})'"
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)':flags=lanczos,crop=1080:1920:'(in_w-1080)*(1-t/{duration})':'(in_h-1920)*(1-t/{duration})'"
         else:
-            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)',crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)/2'"
+            vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)':flags=lanczos,crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)/2'"
             
     cmd = [
         "ffmpeg", "-y",
@@ -401,6 +401,9 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     escaped_ass = ass_path.replace('\\', '/').replace(':', '\\:')
     vf = f"subtitles='{escaped_ass}'"
     
+    PRESET = "medium"
+    CRF = "18"
+    
     if has_music:
         print(f"  Mixing background music under narration...")
         cmd = [
@@ -410,7 +413,7 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
             "-stream_loop", "-1", "-i", music_file,
             "-filter_complex", "[1:a]volume=1.2[v1];[2:a]volume=0.18[v2];[v1][v2]amix=inputs=2:duration=first:dropout_transition=2[a]",
             "-vf", vf,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0",
             "-map", "[a]",
@@ -423,7 +426,7 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
             "-i", merged_video_path,
             "-i", audio_path,
             "-vf", vf,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0",
             "-map", "1:a:0",
