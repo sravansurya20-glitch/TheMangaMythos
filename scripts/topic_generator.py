@@ -65,7 +65,7 @@ def generate_topic_and_script(niche: str) -> dict:
     except:
         pass
 
-    prompt = f"""You are the world's leading Anime Theory content creator, famous for wild, mind-bending, and controversial theories that spark massive debates in the comments.
+    prompt = f"""You are the world's leading Anime Theory content creator, famous for wild, mind-bending, and controversial theories. Your videos feel authentic, personal, and conversational—never robotic or AI-generated.
 Your goal is to write a viral YouTube Short script.
 
 Today: {today}
@@ -73,19 +73,20 @@ Topic: {hook}
 Anime Series Focus: {anime_series.upper()} (Make sure the script is entirely focused on this specific anime!)
 
 STORY REQUIREMENTS:
-1. Start with the HOOK exactly.
+1. Start with a SCROLL-STOPPING HOOK: A controversial, high-energy statement or shocking question that makes it impossible to swipe away.
 2. Structure: 
-   - Hook (immediate attention-grabbing statement, say it with complete conviction!)
-   - The "Meat" (Explain the wild theory. Make it sound incredibly logical even if it's completely fake/insane! Build up fake evidence or clues.)
-   - The Twist/Insight (Why this changes everything we know about the series. "If this is true, then...")
-   - Call to Action / Engagement Prompt (Prompt viewers to debate in the comments. E.g. "But what do you think? Did Shanks betray Luffy, or is he playing the long game? Let me know in the comments and subscribe for more wild anime theories! 🔔")
-3. TONE: High energy, fast-paced, theatrical, debate-provoking.
+   - Refined Hook (1-2 sentences. Speak with extreme conviction!)
+   - The Proof (Build up specific, logical evidence or clues from the manga/lore. Explain it simply but passionately.)
+   - The Big Twist (Why this changes everything: "If this is true, then...")
+   - Theory Score & CTA: Grade the theory out of 10 and prompt a comment debate. (E.g. "I give this theory a solid 9 out of 10. What's your score? Let me know in the comments and subscribe for more wild anime theories! 🔔")
+3. TONE: High energy, fast-paced, personal, debate-provoking, authentic.
 4. LENGTH: 70-85 words (Perfect for a 30-40 second Short).
 5. EMOJIS: Generously include relevant, high-impact emojis throughout the script (e.g., 🏴‍☠️, 🦊, ⚔️, 👿, 🤯, 💀, 👁️) to make captions visually pop!
 
-SCRIPT STYLE:
-- Use second person ("You", "Did you know...", "What if...")
-- Short, punchy sentences (maximum 12 words per sentence).
+SCRIPT STYLE (TO AVOID "AI" FEEL):
+- Never use generic intros like "Welcome back", "In this video", or "Have you ever wondered".
+- Speak like a real passionate fan talking to their friend: use conversational fillers like "Wait...", "Think about it...", "Let that sink in...", "Here's the crazy part..."
+- Short, punchy sentences (maximum 10 words per sentence).
 - NO stage directions or [Music] tags.
 - Focus on "Hyped Narrator" style storytelling.
 
