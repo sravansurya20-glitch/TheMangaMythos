@@ -23,18 +23,27 @@ PRIVACY = "public"   # "public" | "private" | "unlisted"
 
 
 def get_access_token() -> str:
-    """Exchange refresh token for a short-lived access token."""
-    resp = requests.post(YOUTUBE_TOKEN_URL, data={
-        "client_id": os.environ["YOUTUBE_CLIENT_ID"],
-        "client_secret": os.environ["YOUTUBE_CLIENT_SECRET"],
-        "refresh_token": os.environ["YOUTUBE_REFRESH_TOKEN"],
-        "grant_type": "refresh_token"
-    }, timeout=30)
+    """Exchange refresh token for a short-lived access token with retry mechanism."""
+    import time
+    last_err = None
+    for attempt in range(4):
+        try:
+            resp = requests.post(YOUTUBE_TOKEN_URL, data={
+                "client_id": os.environ["YOUTUBE_CLIENT_ID"],
+                "client_secret": os.environ["YOUTUBE_CLIENT_SECRET"],
+                "refresh_token": os.environ["YOUTUBE_REFRESH_TOKEN"],
+                "grant_type": "refresh_token"
+            }, timeout=30)
+            if resp.status_code == 200:
+                return resp.json()["access_token"]
+            print(f"  Token refresh warning (Attempt {attempt+1}): Status {resp.status_code} - {resp.text}")
+            last_err = RuntimeError(f"Token refresh failed: {resp.text}")
+        except Exception as e:
+            print(f"  Token refresh connection/SSL warning (Attempt {attempt+1}): {e}")
+            last_err = e
+        time.sleep(3)
+    raise last_err
 
-    if resp.status_code != 200:
-        raise RuntimeError(f"Token refresh failed: {resp.text}")
-
-    return resp.json()["access_token"]
 
 
 def upload_to_youtube(
@@ -67,17 +76,29 @@ def upload_to_youtube(
     # ── Resumable upload ──────────────────────────────────────────────────────
     file_size = Path(video_path).stat().st_size
 
-    init_resp = requests.post(
-        f"{YOUTUBE_UPLOAD_URL}?uploadType=resumable&part=snippet,status",
-        headers={**headers, "Content-Type": "application/json",
-                 "X-Upload-Content-Type": "video/mp4",
-                 "X-Upload-Content-Length": str(file_size)},
-        json=metadata,
-        timeout=30
-    )
-
-    if init_resp.status_code not in (200, 201):
-        raise RuntimeError(f"Upload init failed: {init_resp.text}")
+    init_resp = None
+    last_err = None
+    import time
+    for attempt in range(4):
+        try:
+            init_resp = requests.post(
+                f"{YOUTUBE_UPLOAD_URL}?uploadType=resumable&part=snippet,status",
+                headers={**headers, "Content-Type": "application/json",
+                         "X-Upload-Content-Type": "video/mp4",
+                         "X-Upload-Content-Length": str(file_size)},
+                json=metadata,
+                timeout=30
+            )
+            if init_resp.status_code in (200, 201):
+                break
+            print(f"  Upload init warning (Attempt {attempt+1}): Status {init_resp.status_code} - {init_resp.text}")
+            last_err = RuntimeError(f"Upload init failed: {init_resp.text}")
+        except Exception as e:
+            print(f"  Upload init connection/SSL warning (Attempt {attempt+1}): {e}")
+            last_err = e
+        time.sleep(3)
+    else:
+        raise last_err
 
     upload_url = init_resp.headers["Location"]
 
