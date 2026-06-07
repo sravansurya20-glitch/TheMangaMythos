@@ -229,42 +229,67 @@ def safe_text(text: str) -> str:
     return text[:55]
 
 def get_images_for_series(series_id: str) -> list:
-    extracted_dir = r"C:\Users\srava\.gemini\antigravity\scratch\anime-theory-youtube\extracted_images"
-    if not os.path.exists(extracted_dir):
-        extracted_dir = os.path.join(REPO_ROOT, "extracted_images")
-    if not os.path.exists(extracted_dir):
-        print(f"  Warning: {extracted_dir} does not exist yet.")
-        return []
-        
-    subfolders = [os.path.join(extracted_dir, d) for d in os.listdir(extracted_dir) if os.path.isdir(os.path.join(extracted_dir, d))]
+    search_dirs = [
+        r"C:\Users\srava\.gemini\antigravity\scratch\anime-theory-youtube\extracted_images",
+        r"C:\Users\srava\OneDrive\Desktop\Anime Theory"
+    ]
     
-    matching_folders = []
-    for folder in subfolders:
-        folder_name = os.path.basename(folder).lower()
-        if series_id == "one_piece" and "one piece" in folder_name:
-            matching_folders.append(folder)
-        elif series_id == "solo_leveling" and ("solo leveling" in folder_name or "capitolo" in folder_name):
-            matching_folders.append(folder)
-        elif series_id == "bleach" and "bleach" in folder_name:
-            matching_folders.append(folder)
-        elif series_id == "naruto" and "naruto" in folder_name:
-            matching_folders.append(folder)
-            
-    # Fallback to any folder if no match
-    if not matching_folders and subfolders:
-        print(f"  Warning: No matching folder for series '{series_id}'. Falling back to all available folders.")
-        matching_folders = subfolders
+    # Resolve relative repo root fallback for extracted_images if needed
+    repo_extracted = os.path.join(REPO_ROOT, "extracted_images")
+    if repo_extracted not in search_dirs:
+        search_dirs.append(repo_extracted)
         
+    matching_folders = []
+    for base_dir in search_dirs:
+        if not os.path.exists(base_dir):
+            continue
+        try:
+            subfolders = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+            for folder in subfolders:
+                folder_name = os.path.basename(folder).lower()
+                if series_id == "one_piece" and "one piece" in folder_name:
+                    matching_folders.append(folder)
+                elif series_id == "solo_leveling" and ("solo leveling" in folder_name or "capitolo" in folder_name):
+                    matching_folders.append(folder)
+                elif series_id == "bleach" and "bleach" in folder_name:
+                    matching_folders.append(folder)
+                elif series_id == "naruto" and "naruto" in folder_name:
+                    matching_folders.append(folder)
+                elif series_id == "black_clover" and "black clover" in folder_name:
+                    matching_folders.append(folder)
+        except Exception as e:
+            print(f"  Warning: Error scanning {base_dir}: {e}")
+
+    # Deduplicate matching folders list
+    matching_folders = list(set(matching_folders))
+    
     images = []
     for folder in matching_folders:
         for root, _, files in os.walk(folder):
             for f in files:
-                if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
                     images.append(os.path.join(root, f))
                     
+    # Fallback to any folder in extracted_images or Desktop if no images found
+    if not images:
+        print(f"  Warning: No matching folder/images for series '{series_id}'. Scanning fallbacks...")
+        for base_dir in search_dirs:
+            if not os.path.exists(base_dir):
+                continue
+            try:
+                subfolders = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+                for folder in subfolders:
+                    for root, _, files in os.walk(folder):
+                        for f in files:
+                            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                                images.append(os.path.join(root, f))
+            except Exception as e:
+                pass
+
     random.shuffle(images)
     print(f"  Found {len(images)} total images for series '{series_id}' in folders: {[os.path.basename(f) for f in matching_folders]}")
     return images
+
 
 def make_panning_clip(image_path: str, duration: float, output_path: str) -> bool:
     """Creates a 30fps vertical video clip with a smooth panning/scrolling effect based on image aspect ratio"""
