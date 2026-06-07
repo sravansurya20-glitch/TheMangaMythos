@@ -112,16 +112,31 @@ def upload_to_youtube(
             chunk = f.read(chunk_size)
             end = uploaded + len(chunk) - 1
 
-            chunk_resp = requests.put(
-                upload_url,
-                headers={
-                    **headers,
-                    "Content-Range": f"bytes {uploaded}-{end}/{file_size}",
-                    "Content-Type": "video/mp4"
-                },
-                data=chunk,
-                timeout=120
-            )
+            chunk_resp = None
+            last_err = None
+            import time
+            for attempt in range(4):
+                try:
+                    chunk_resp = requests.put(
+                        upload_url,
+                        headers={
+                            **headers,
+                            "Content-Range": f"bytes {uploaded}-{end}/{file_size}",
+                            "Content-Type": "video/mp4"
+                        },
+                        data=chunk,
+                        timeout=120
+                    )
+                    if chunk_resp.status_code in (200, 201, 308):
+                        break
+                    print(f"  Chunk upload warning (Attempt {attempt+1}): Status {chunk_resp.status_code} - {chunk_resp.text}")
+                    last_err = RuntimeError(f"Chunk upload failed: {chunk_resp.text}")
+                except Exception as e:
+                    print(f"  Chunk upload connection/SSL warning (Attempt {attempt+1}): {e}")
+                    last_err = e
+                time.sleep(3)
+            else:
+                raise last_err
 
             if chunk_resp.status_code in (200, 201):
                 video_id = chunk_resp.json()["id"]
