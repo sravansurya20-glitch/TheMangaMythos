@@ -372,10 +372,13 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     if not images:
         raise RuntimeError(f"No manga images found for '{anime_series}'. Please make sure images exist in Desktop or local folders.")
         
-    # We will use 5 images for a standard Short, meaning each clip gets a segment of the duration
-    num_clips = 5
+    # We will dynamically calculate the number of clips to show an image every 2.5 seconds
+    target_clip_dur = 2.5
+    num_clips = int(duration / target_clip_dur)
+    if num_clips == 0:
+        num_clips = 1
     clip_dur = duration / num_clips
-    print(f"  Creating {num_clips} image clips with duration {clip_dur:.2f}s each...")
+    print(f"  Dynamically calculated: {num_clips} image clips with duration {clip_dur:.2f}s each...")
     
     # Smart Sync matching: Map images to timestamps based on keywords spoken
     selected_images = []

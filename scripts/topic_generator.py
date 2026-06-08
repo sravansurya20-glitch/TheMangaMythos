@@ -26,6 +26,22 @@ VIRAL_HOOKS = [
     ("The secret of the Double Dungeon in Solo Leveling.", "double dungeon stone statue", "solo_leveling"),
     ("What if Sung Jinwoo lost his shadow powers?", "jinwoo weak hunter E-rank", "solo_leveling"),
     ("Why the Rulers are actually the bad guys in Solo Leveling.", "rulers absolute being fragment", "solo_leveling"),
+
+    # Black Clover
+    ("Asta's demon Liebe is actually the child of a god.", "asta liebe devil theory", "black_clover"),
+    ("Why Yuno is destined to become the final villain.", "yuno villain spade kingdom", "black_clover"),
+    ("Julius Novachrono's true magic is NOT time magic.", "julius lucius novachrono time magic", "black_clover"),
+    ("The terrifying secret behind the Wizard King's grimoire.", "wizard king grimoire julius", "black_clover"),
+    ("Why Lucius Zogratis has already won in Black Clover.", "lucius zogratis final battle", "black_clover"),
+    ("The connection between Asta's anti-magic and the gods.", "anti magic asta liebe origin", "black_clover"),
+
+    # Bleach
+    ("Aizen's Bankai was hidden from us for a dark reason.", "aizen bankai kyoka suigetsu", "bleach"),
+    ("Why Yhwach was terrified of Ichigo's true power.", "yhwach ichigo true bankai", "bleach"),
+    ("The secret connection between the Soul King and Ichigo.", "soul king ichigo hybrid", "bleach"),
+    ("Kisuke Urahara is secretly the ultimate villain of Bleach.", "kisuke urahara mastermind theory", "bleach"),
+    ("Why the Quincy invasion was actually justified.", "quincy soul reapers war yhwach", "bleach"),
+    ("The dark secret behind the creation of the Hogyoku.", "hogyoku aizen urahara soul king", "bleach"),
     
 ]
 
