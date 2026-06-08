@@ -7,42 +7,8 @@ client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 # Each entry is: (hook_title, search_keyword, anime_series_id)
 VIRAL_HOOKS = [
-    # One Piece
-    ("What if Shanks is secretly working for the World Government?", "shanks gorosei theory", "one_piece"),
-    ("Why Zoro's closed eye has a demonic secret.", "zoro ashura sharingan", "one_piece"),
-    ("Luffy's Gear 5 is NOT what you think it is.", "gear 5 joy boy nika", "one_piece"),
-    ("Is Blackbeard actually three people in one body?", "blackbeard three souls", "one_piece"),
-    ("The real reason Gol D. Roger laughed at Laugh Tale.", "roger laughed one piece", "one_piece"),
-    ("Why Imu is actually Luffy's mother.", "imu luffy mother", "one_piece"),
-    ("Is Joy Boy actually a giant in One Piece?", "joy boy giant skull", "one_piece"),
-    ("Why Akainu is secretly plotting to overthrow the Gorosei.", "akainu fleet admiral anger", "one_piece"),
-    ("The connection between Sun God Nika and the Ancient Weapons.", "nika ancient weapons poseidon", "one_piece"),
-    
-    # Solo Leveling
-    ("How Sung Jinwoo actually became the Shadow Monarch.", "sung jinwoo ashborn monarch", "solo_leveling"),
-    ("What if the Monarch of Destruction won?", "monarch destruction dragonant", "solo_leveling"),
-    ("The dark origin of the System in Solo Leveling.", "architect system jinwoo", "solo_leveling"),
-    ("Why Sung Jinwoo's dad had to die.", "sung il hwan death shadow", "solo_leveling"),
-    ("The secret of the Double Dungeon in Solo Leveling.", "double dungeon stone statue", "solo_leveling"),
-    ("What if Sung Jinwoo lost his shadow powers?", "jinwoo weak hunter E-rank", "solo_leveling"),
-    ("Why the Rulers are actually the bad guys in Solo Leveling.", "rulers absolute being fragment", "solo_leveling"),
-
-    # Black Clover
+    # Black Clover (TEST)
     ("Asta's demon Liebe is actually the child of a god.", "asta liebe devil theory", "black_clover"),
-    ("Why Yuno is destined to become the final villain.", "yuno villain spade kingdom", "black_clover"),
-    ("Julius Novachrono's true magic is NOT time magic.", "julius lucius novachrono time magic", "black_clover"),
-    ("The terrifying secret behind the Wizard King's grimoire.", "wizard king grimoire julius", "black_clover"),
-    ("Why Lucius Zogratis has already won in Black Clover.", "lucius zogratis final battle", "black_clover"),
-    ("The connection between Asta's anti-magic and the gods.", "anti magic asta liebe origin", "black_clover"),
-
-    # Bleach
-    ("Aizen's Bankai was hidden from us for a dark reason.", "aizen bankai kyoka suigetsu", "bleach"),
-    ("Why Yhwach was terrified of Ichigo's true power.", "yhwach ichigo true bankai", "bleach"),
-    ("The secret connection between the Soul King and Ichigo.", "soul king ichigo hybrid", "bleach"),
-    ("Kisuke Urahara is secretly the ultimate villain of Bleach.", "kisuke urahara mastermind theory", "bleach"),
-    ("Why the Quincy invasion was actually justified.", "quincy soul reapers war yhwach", "bleach"),
-    ("The dark secret behind the creation of the Hogyoku.", "hogyoku aizen urahara soul king", "bleach"),
-    
 ]
 
 import random
