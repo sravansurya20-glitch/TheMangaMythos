@@ -339,6 +339,12 @@ def make_panning_clip(image_path: str, duration: float, output_path: str) -> boo
         else:
             vf = f"scale='max(1296,iw*2304/ih)':'max(2304,ih*1296/iw)':flags=lanczos,crop=1080:1920:'(in_w-1080)*t/{duration}':'(in_h-1920)/2'"
             
+    # Apply emergency anti-copyright safety filters:
+    # - hflip: Horizontal mirroring (highly effective against layout scans)
+    # - eq: Color/contrast adjustment (alters RGB signatures)
+    # - vignette: Dark corner shading (disrupts border-matching scans)
+    vf += ",hflip,eq=contrast=1.08:brightness=-0.02:saturation=1.05,vignette"
+            
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1",
