@@ -363,7 +363,7 @@ def make_panning_clip(image_path: str, duration: float, output_path: str) -> boo
         print(f"  Stderr: {result.stderr}")
     return result.returncode == 0
 
-def build_video(audio_path: str, title: str, script: str = "", anime_series: str = "one_piece") -> str:
+def build_video(audio_path: str, title: str, script: str = "", anime_series: str = "solo_leveling") -> str:
     duration = get_audio_duration(audio_path)
     print(f"  Audio duration: {duration:.1f}s")
     

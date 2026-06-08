@@ -44,7 +44,7 @@ def run_pipeline():
         audio_path=audio_path,
         title=content["title"],
         script=content["script"],
-        anime_series=content.get("anime_series", "one_piece")
+        anime_series=content.get("anime_series", "solo_leveling")
     )
     
     # Move to Desktop for easy access (handles OneDrive too)
