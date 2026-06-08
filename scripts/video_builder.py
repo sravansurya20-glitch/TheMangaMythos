@@ -380,6 +380,27 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     clip_dur = duration / num_clips
     print(f"  Dynamically calculated: {num_clips} image clips with duration {clip_dur:.2f}s each...")
     
+    # Load metadata database(s) from matching folders to support Option 2 AI semantic matching
+    metadata_db = {}
+    search_dirs = [
+        r"C:\Users\srava\.gemini\antigravity\scratch\anime-theory-youtube\extracted_images",
+        r"C:\Users\srava\OneDrive\Desktop\Anime Theory",
+        os.path.join(REPO_ROOT, "extracted_images")
+    ]
+    for d in search_dirs:
+        if not os.path.exists(d):
+            continue
+        for root, _, files in os.walk(d):
+            if "image_metadata.json" in files:
+                json_path = os.path.join(root, "image_metadata.json")
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        metadata_db.update(data)
+                except Exception as e:
+                    print(f"  Warning: Could not load metadata DB from {json_path}: {e}")
+    print(f"  Loaded {len(metadata_db)} total image metadata records for matching.")
+
     # Smart Sync matching: Map images to timestamps based on keywords spoken
     selected_images = []
     used_images = set()
@@ -397,43 +418,88 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
         start_t = c_idx * clip_dur
         end_t = (c_idx + 1) * clip_dur
         
-        # Find all keywords spoken during this clip's time window
+        # 1. Collect all words spoken in this time window
+        words_in_window = []
         keywords_in_window = []
         for w in words:
             if w["start"] >= start_t and w["start"] <= end_t:
                 word_clean = re.sub(r'[^\w\s]', '', w["word"]).lower()
+                words_in_window.append(word_clean)
                 if word_clean in match_keywords:
                     keywords_in_window.append(word_clean)
                     
         # Find matching images in our list
         found_match = False
-        if keywords_in_window:
+        
+        # Priority 1: Semantic Metadata matching (AI tags)
+        if words_in_window:
+            matching_candidates = []
+            for img in images:
+                if img in used_images:
+                    continue
+                basename = os.path.basename(img)
+                if basename in metadata_db:
+                    meta = metadata_db[basename]
+                    char_match_count = 0
+                    keyword_match_count = 0
+                    
+                    for w in words_in_window:
+                        if w in [c.lower() for c in meta.get("characters", [])]:
+                            char_match_count += 5 # high priority for character mention
+                        if w in [k.lower() for k in meta.get("keywords", [])]:
+                            keyword_match_count += 1
+                        if w in meta.get("description", "").lower():
+                            keyword_match_count += 1
+                            
+                    score = char_match_count + keyword_match_count
+                    if score > 0:
+                        matching_candidates.append((img, score, meta))
+                        
+            if matching_candidates:
+                matching_candidates.sort(key=lambda x: x[1], reverse=True)
+                best_score = matching_candidates[0][1]
+                best_candidates = [x for x in matching_candidates if x[1] == best_score]
+                chosen, score, meta = random.choice(best_candidates)
+                selected_images.append(chosen)
+                used_images.add(chosen)
+                found_match = True
+                print(f"  [AI Semantic Match] Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) -> {os.path.basename(chosen)} (score: {score}, characters: {meta.get('characters')}, keywords: {meta.get('keywords')})")
+                
+        # Priority 2: Filename keyword match (fallback smart match)
+        if not found_match and keywords_in_window:
             for kw in keywords_in_window:
-                # Prioritize images that contain the keyword in their filename
                 matching_imgs = [img for img in images if kw in os.path.basename(img).lower() and img not in used_images]
                 if matching_imgs:
                     chosen = random.choice(matching_imgs)
                     selected_images.append(chosen)
                     used_images.add(chosen)
                     found_match = True
-                    print(f"  [Smart Match] Matched Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) to: {os.path.basename(chosen)} (keyword: '{kw}')")
+                    print(f"  [Smart Filename Match] Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) -> {os.path.basename(chosen)} (keyword: '{kw}')")
                     break
                     
+        # Priority 3: General fallback
         if not found_match:
-            # Fallback to general images (no keyword in filename, or general search)
             general_imgs = [img for img in images if img not in used_images]
             if not general_imgs:
-                # reset used images if all used
                 general_imgs = images
-            # prioritize general images (those without keywords in name) to avoid misalignments
-            general_no_kw = [img for img in general_imgs if not any(kw in os.path.basename(img).lower() for kw in match_keywords)]
+            general_no_kw = []
+            for img in general_imgs:
+                basename = os.path.basename(img)
+                has_kw = any(kw in basename.lower() for kw in match_keywords)
+                if basename in metadata_db:
+                    if metadata_db[basename].get("characters"):
+                        has_kw = True
+                if not has_kw:
+                    general_no_kw.append(img)
+                    
             if general_no_kw:
                 chosen = random.choice(general_no_kw)
             else:
                 chosen = random.choice(general_imgs)
+                
             selected_images.append(chosen)
             used_images.add(chosen)
-            print(f"  [General] Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) uses: {os.path.basename(chosen)}")
+            print(f"  [General Fallback] Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) -> {os.path.basename(chosen)}")
 
     # 3. Build temporary panning clips
     temp_clips = []
