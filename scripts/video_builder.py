@@ -67,7 +67,7 @@ def fmt_ass_time(s: float) -> str:
     cs = int((s % 1) * 100)
     return f"{h}:{m:02d}:{sec:02d}.{cs:02d}"
 
-def generate_whisper_ass(audio_path: str) -> str | None:
+def generate_whisper_ass(audio_path: str) -> tuple[list, str | None]:
     """Use OpenAI Whisper for perfectly synced captions with active word pop/highlighting"""
     try:
         import whisper
@@ -89,7 +89,7 @@ def generate_whisper_ass(audio_path: str) -> str | None:
                 })
 
         if not all_words:
-            return None
+            return [], None
 
         # Group words into lines of 3 words
         words_per_line = 3
@@ -155,13 +155,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         tmp.write(ass_content)
         tmp.close()
         print("  Hormozi-style Whisper ASS captions generated!")
-        return tmp.name
+        return all_words, tmp.name
 
     except Exception as e:
         print(f"  Whisper ASS generation failed: {e}")
-        return None
+        return [], None
 
-def generate_estimated_ass(script: str, duration: float) -> str:
+def generate_estimated_ass(script: str, duration: float) -> tuple[list, str]:
     """Fallback: estimated timing based on word count with active word pop/highlighting"""
     script = re.sub(r'\s+', ' ', script).strip()
     words = script.split()
@@ -173,6 +173,16 @@ def generate_estimated_ass(script: str, duration: float) -> str:
     time_per_word = duration / total
     words_per_line = 3
     events = []
+    
+    all_words = []
+    for i in range(total):
+        w_start = i * time_per_word
+        w_end = min((i + 1) * time_per_word, duration)
+        all_words.append({
+            "word": words[i].upper(),
+            "start": w_start,
+            "end": w_end
+        })
 
     for i in range(0, total, words_per_line):
         line_chunk = words[i:i + words_per_line]
@@ -220,7 +230,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     )
     tmp.write(ass_content)
     tmp.close()
-    return tmp.name
+    return all_words, tmp.name
+
 
 def safe_text(text: str) -> str:
     text = re.sub(r"['\"\[\]{}|\\]", "", text)
@@ -350,21 +361,78 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     duration = get_audio_duration(audio_path)
     print(f"  Audio duration: {duration:.1f}s")
     
-    # 1. Fetch images for this series
+    # 1. Generate subtitles first to get word timings for smart image matching
+    words, ass_path = generate_whisper_ass(audio_path)
+    if not ass_path:
+        caption_text = script if script.strip() else title
+        words, ass_path = generate_estimated_ass(caption_text, duration)
+        
+    # 2. Fetch images for this series
     images = get_images_for_series(anime_series)
     if not images:
-        raise RuntimeError(f"No extracted manga images found for '{anime_series}'. Please make sure pdf_extractor has run successfully.")
+        raise RuntimeError(f"No manga images found for '{anime_series}'. Please make sure images exist in Desktop or local folders.")
         
-    # We will use 5 images for a standard Short, meaning ~10s per image
+    # We will use 5 images for a standard Short, meaning each clip gets a segment of the duration
     num_clips = 5
-    if len(images) < num_clips:
-        images = images * (num_clips // len(images) + 1)
-    selected_images = images[:num_clips]
-    
     clip_dur = duration / num_clips
     print(f"  Creating {num_clips} image clips with duration {clip_dur:.2f}s each...")
     
-    # 2. Build temporary panning clips
+    # Smart Sync matching: Map images to timestamps based on keywords spoken
+    selected_images = []
+    used_images = set()
+    
+    # Character/Concept keywords we want to match
+    match_keywords = [
+        "luffy", "zoro", "shanks", "blackbeard", "imu", "roger", "akainu", "nika", "joyboy", 
+        "asta", "yuno", "noelle", "yami", "julius", "lucius",
+        "jinwoo", "shadow", "system", "monarch",
+        "ichigo", "aizen", "bankai", "hollow", "quincy",
+        "naruto", "sasuke", "itachi", "madara", "obito", "kakashi"
+    ]
+    
+    for c_idx in range(num_clips):
+        start_t = c_idx * clip_dur
+        end_t = (c_idx + 1) * clip_dur
+        
+        # Find all keywords spoken during this clip's time window
+        keywords_in_window = []
+        for w in words:
+            if w["start"] >= start_t and w["start"] <= end_t:
+                word_clean = re.sub(r'[^\w\s]', '', w["word"]).lower()
+                if word_clean in match_keywords:
+                    keywords_in_window.append(word_clean)
+                    
+        # Find matching images in our list
+        found_match = False
+        if keywords_in_window:
+            for kw in keywords_in_window:
+                # Prioritize images that contain the keyword in their filename
+                matching_imgs = [img for img in images if kw in os.path.basename(img).lower() and img not in used_images]
+                if matching_imgs:
+                    chosen = random.choice(matching_imgs)
+                    selected_images.append(chosen)
+                    used_images.add(chosen)
+                    found_match = True
+                    print(f"  [Smart Match] Matched Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) to: {os.path.basename(chosen)} (keyword: '{kw}')")
+                    break
+                    
+        if not found_match:
+            # Fallback to general images (no keyword in filename, or general search)
+            general_imgs = [img for img in images if img not in used_images]
+            if not general_imgs:
+                # reset used images if all used
+                general_imgs = images
+            # prioritize general images (those without keywords in name) to avoid misalignments
+            general_no_kw = [img for img in general_imgs if not any(kw in os.path.basename(img).lower() for kw in match_keywords)]
+            if general_no_kw:
+                chosen = random.choice(general_no_kw)
+            else:
+                chosen = random.choice(general_imgs)
+            selected_images.append(chosen)
+            used_images.add(chosen)
+            print(f"  [General] Clip {c_idx} ({start_t:.1f}s-{end_t:.1f}s) uses: {os.path.basename(chosen)}")
+
+    # 3. Build temporary panning clips
     temp_clips = []
     temp_dir = tempfile.gettempdir()
     
@@ -379,7 +447,7 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     if not temp_clips:
         raise RuntimeError("Failed to create any panning image clips.")
         
-    # 3. Concatenate the clips
+    # 4. Concatenate the clips
     concat_txt_path = os.path.join(temp_dir, f"concat_list_{datetime.datetime.now().strftime('%M%S%f')}.txt")
     with open(concat_txt_path, 'w', encoding='utf-8') as f:
         for c in temp_clips:
@@ -410,16 +478,11 @@ def build_video(audio_path: str, title: str, script: str = "", anime_series: str
     except:
         pass
         
-    # 4. Generate subtitles
+    # 5. Output file prep and subtitles setup
     output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     output.close()
-    
-    ass_path = generate_whisper_ass(audio_path)
-    if not ass_path:
-        caption_text = script if script.strip() else title
-        ass_path = generate_estimated_ass(caption_text, duration)
         
-    # 5. Check background music
+    # 6. Check background music
     music_file = os.path.join(REPO_ROOT, "music", "background_music.ogg")
     has_music = os.path.exists(music_file)
     
